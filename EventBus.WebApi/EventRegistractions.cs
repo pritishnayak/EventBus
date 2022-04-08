@@ -1,57 +1,46 @@
 ﻿using Azure.Messaging.ServiceBus;
+using EventBus.WebApi.ESB;
+using System.Collections.Concurrent;
 
 namespace EventBus.WebApi
 {
     public class EventRegistractions : IHostedService
     {
-        private const string ConnectionString = "Endpoint=sb://event-bus-demo.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=TAqAO0CzrGTOnnEQ7uYupRR4Npp8Zfq032PH4U3uJzY=";
-        private const string TopicName = "Activity1";
-        private const string SubscriptionName = "Sub1";
-        
-        private readonly ServiceBusClient _client;
-        private readonly ServiceBusProcessor _processor;
-        private readonly ILogger<EventRegistractions> _logger;
+        private const string ConnectionString = "Endpoint=sb://asbdemoaspnet.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Uagd1fODkS82MXg6VwGcFxKh5196K3Bk4nfXi7yGqAo=";
 
-        public EventRegistractions(ILogger<EventRegistractions> logger)
+        private readonly ServiceBusClient _client;
+        private readonly IEnumerable<IBroker> _brokers;
+
+        private readonly ConcurrentDictionary<string, ServiceBusProcessor> _serviceBusProcessors = new();
+
+        public EventRegistractions(IEnumerable<IBroker> brokers)
         {
             _client = new(ConnectionString);
-            _processor = _client.CreateProcessor(TopicName, SubscriptionName, new ServiceBusProcessorOptions());
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _brokers = brokers;
         }
+
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            _processor.ProcessMessageAsync += MessageHandler;
+            foreach (var broker in _brokers)
+            {
+                var processor = _client.CreateProcessor(broker.TopicName, broker.SubscriptionName, new ServiceBusProcessorOptions());
+                processor.ProcessMessageAsync += broker.ProcessMessageAsync;
+                processor.ProcessErrorAsync += broker.ProcessErrorAsync;
 
-            // add handler to process any errors
-            _processor.ProcessErrorAsync += ErrorHandler;
+                _serviceBusProcessors.TryAdd($"{broker.TopicName}:{broker.SubscriptionName}", processor);
+            }
 
-            await _processor.StartProcessingAsync(cancellationToken);
+            await Task.WhenAll(_serviceBusProcessors.Values.Select(p => p.StartProcessingAsync(cancellationToken)));
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            await _processor.StopProcessingAsync(cancellationToken);
-            await _processor.DisposeAsync();
+            foreach (var processor in _serviceBusProcessors.Values)
+            {
+                await processor.StopProcessingAsync(cancellationToken);
+                await processor.DisposeAsync();
+            }
             await _client.DisposeAsync();
         }
-
-        private async Task MessageHandler(ProcessMessageEventArgs args)
-        {
-            string body = args.Message.Body.ToString();
-            _logger.LogInformation("Received: {BusMsgBody} from subscription: {SubscriptionName}", body, SubscriptionName);
-
-            // complete the message. messages is deleted from the subscription. 
-            await args.CompleteMessageAsync(args.Message);
-        }
-
-        // handle any errors when receiving messages
-        private Task ErrorHandler(ProcessErrorEventArgs args)
-        {
-            // TODO: what to do when unexpected error occurs
-            _logger.LogError(args.Exception, "Exception: {Exception}\nErrorSource: {ErrorSource}", args.Exception.ToString(), args.ErrorSource.ToString());
-            return Task.CompletedTask;
-        }
-
-        
     }
 }
