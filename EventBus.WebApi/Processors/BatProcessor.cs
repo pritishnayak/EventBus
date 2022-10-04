@@ -1,4 +1,6 @@
-﻿namespace EventBus.WebApi.ESB.MessageProcessors;
+﻿using EventBus.Library;
+
+namespace EventBus.WebApi.Processors;
 
 public class BatProcessor : Broker<BatMan>
 {

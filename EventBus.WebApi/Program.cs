@@ -1,5 +1,5 @@
-using EventBus.WebApi;
-using EventBus.WebApi.ESB.MessageProcessors;
+using EventBus.Library;
+using EventBus.WebApi.Processors;
 
 var builder = WebApplication.CreateBuilder(args);
 
