@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 
 namespace EventBus.Library;
 
-public class EventRegistractions : IHostedService
+internal sealed class EventRegistractions : IHostedService
 {
     private const string ConnectionString = "Endpoint=sb://asbdemoaspnet.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Uagd1fODkS82MXg6VwGcFxKh5196K3Bk4nfXi7yGqAo=";
 
@@ -40,6 +40,7 @@ public class EventRegistractions : IHostedService
             await processor.StopProcessingAsync(cancellationToken);
             await processor.DisposeAsync();
         }
+
         await _client.DisposeAsync();
     }
 }

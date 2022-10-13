@@ -1,11 +1,15 @@
-using EventBus.Library;
+using EventBus.Library.Sender;
 using EventBus.WebApi.Processors;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Register Typed Sender
+builder.Services.AddTransient(typeof(IMessageSender<>), typeof(MessageSender<>));
 
-builder.Services.AddHostedService<EventRegistractions>();
+// Register generic Sender
+builder.Services.AddTransient<IMessageSender>(x => ActivatorUtilities.CreateInstance<MessageSender>(x, "Generic"));
+
+// Add services to the container.
 builder.Services.RegisterMessageProcessor<AntProcessor>();
 builder.Services.RegisterMessageProcessor<BatProcessor>();
 

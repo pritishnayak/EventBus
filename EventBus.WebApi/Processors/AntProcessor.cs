@@ -6,7 +6,7 @@ public class AntProcessor : Broker<AntMan>
 {
     private readonly ILogger<Broker<AntMan>> _logger;
 
-    public override string TopicName => "Help.Help.Help";
+    public override string TopicName => "AntMan";
     public override string SubscriptionName => "AntMan";
 
     public AntProcessor(ILogger<Broker<AntMan>> logger)

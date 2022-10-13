@@ -1,4 +1,4 @@
-﻿using Azure.Messaging.ServiceBus;
+﻿using EventBus.Library.Sender;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventBus.WebApi.Controllers;
@@ -7,28 +7,31 @@ namespace EventBus.WebApi.Controllers;
 [ApiController]
 public class ActivityController : ControllerBase
 {
-    private const string ConnectionString = "Endpoint=sb://asbdemoaspnet.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Uagd1fODkS82MXg6VwGcFxKh5196K3Bk4nfXi7yGqAo=";
-    private const string TopicName = "Help.Help.Help";
+    //private const string ConnectionString = "Endpoint=sb://asbdemoaspnet.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Uagd1fODkS82MXg6VwGcFxKh5196K3Bk4nfXi7yGqAo=";
+    //private const string TopicName = "Help.Help.Help";
 
+    private readonly IMessageSender<AntMan> _antSender;
     private readonly ILogger<ActivityController> _logger;
 
-    public ActivityController(ILogger<ActivityController> logger)
+    public ActivityController(ILogger<ActivityController> logger, IMessageSender<AntMan> antSender)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _antSender = antSender;
     }
 
     [HttpPost(Name = "CreateActivity")]
-    public async Task<IActionResult> CreateAsync([FromBody] string name)
+    public async Task<ActionResult<AntMan>> CreateAsync([FromBody] string name)
     {
         _logger.LogInformation("Received payload: {Payload}", name);
 
-        await using ServiceBusClient client = new(ConnectionString);
-        await using ServiceBusSender sender = client.CreateSender(TopicName);
+        //await using ServiceBusClient client = new(ConnectionString);
+        //await using ServiceBusSender sender = client.CreateSender(TopicName);
 
-        ServiceBusMessage busmsg = new(BinaryData.FromObjectAsJson(new AntMan(Random.Shared.Next(0, 10), name)));
-        await sender.SendMessagesAsync(new[] { busmsg });
-        _logger.LogInformation("A bus {BusMsgId} messages has been published to the {TopicName}.", busmsg.MessageId, TopicName);
+        AntMan newAnt = new(Random.Shared.Next(0, 10), name);
+        //ServiceBusMessage busmsg = new(BinaryData.FromObjectAsJson(newAnt));
+        await _antSender.SendAsync(newAnt);
+        //_logger.LogInformation("A bus {BusMsgId} messages has been published to the {TopicName}.", busmsg.MessageId, TopicName);
 
-        return Ok();
+        return Ok(newAnt);
     }
 }

@@ -26,6 +26,7 @@ public class BatProcessor : Broker<BatMan>
         {
             action = (MessageStatus)act;
         }
+
         return Task.FromResult(action);
     }
 }

@@ -4,50 +4,32 @@ using System.Reflection;
 
 namespace EventBus.Library.Sender;
 
-public interface IMessageSender
+public interface IMessageSender<T> : IMessageSender where T : class
 {
-    Task SendAsync<T>(T message) where T : class, new();
+    Task SendAsync(T message);
 }
 
-public class MessageSender : IMessageSender, IAsyncDisposable
+public interface IMessageSender
 {
-    private const string ConnectionString = "Endpoint=sb://asbdemoaspnet.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Uagd1fODkS82MXg6VwGcFxKh5196K3Bk4nfXi7yGqAo=";
-    private readonly ServiceBusSender _sender;
+    Task SendAsync(IDictionary<string, object> properties);
+}
 
-    public MessageSender(string topicName)
+public sealed class MessageSender<T> : MessageSender, IMessageSender, IMessageSender<T>, IAsyncDisposable where T : class
+{
+    public MessageSender() : base(typeof(T).Name)
     {
-        ServiceBusClient client = new(ConnectionString);
-        _sender = client.CreateSender(topicName);
     }
 
-    public async Task SendAsync<T>(T message) where T : class, new()
+    public async Task SendAsync(T message)
     {
         ServiceBusMessage busMsg = new(BinaryData.FromObjectAsJson(message));
         var properties = GetHeadersFromAttribute(message);
         SetHeaders(busMsg, properties);
 
-        await _sender.SendMessagesAsync(new[] { busMsg });
+        await _sender.SendMessageAsync(busMsg);
     }
 
-    public async Task SendAsync(IDictionary<string, object> properties)
-    {
-        ServiceBusMessage busMsg = new();
-        SetHeaders(busMsg, properties);
-
-        await _sender.SendMessagesAsync(new[] { busMsg });
-    }
-
-    private void SetHeaders(ServiceBusMessage busMsg, IDictionary<string, object> properties)
-    {
-        foreach (var item in properties)
-        {
-            // Also consider using this value to signal
-            // whether adding heade was a success or not.
-            busMsg.ApplicationProperties.TryAdd(item.Key, item.Value);
-        }
-    }
-
-    private IDictionary<string, object> GetHeadersFromAttribute<T>(T obj)
+    private static IDictionary<string, object> GetHeadersFromAttribute(T obj)
     {
         var headers = new Dictionary<string, object>();
         var props = typeof(T).GetProperties(BindingFlags.Public | BindingFlags.Instance);
@@ -55,9 +37,11 @@ public class MessageSender : IMessageSender, IAsyncDisposable
         foreach (var prop in props)
         {
             IncludeInHeaderAttribute? attr;
-            if ((attr = prop.GetCustomAttribute<IncludeInHeaderAttribute>()) != null)
+            object? value;
+            if ((attr = prop.GetCustomAttribute<IncludeInHeaderAttribute>()) is not null
+                && (value = prop.GetValue(obj)) is not null)
             {
-                headers.TryAdd(attr.Key ?? prop.Name, prop.GetValue(obj));
+                headers.TryAdd(attr.Key ?? prop.Name, value);
             }
         }
 
@@ -69,5 +53,34 @@ public class MessageSender : IMessageSender, IAsyncDisposable
     {
         await _sender.DisposeAsync();
     }
+}
 
+public class MessageSender : IMessageSender
+{
+    private const string ConnectionString = "Endpoint=sb://asbdemoaspnet.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Uagd1fODkS82MXg6VwGcFxKh5196K3Bk4nfXi7yGqAo=";
+    protected readonly ServiceBusSender _sender;
+
+    public MessageSender(string topicName)
+    {
+        ServiceBusClient client = new(ConnectionString);
+        _sender = client.CreateSender(topicName);
+    }
+
+    public async Task SendAsync(IDictionary<string, object> properties)
+    {
+        ServiceBusMessage busMsg = new();
+        SetHeaders(busMsg, properties);
+
+        await _sender.SendMessageAsync(busMsg);
+    }
+
+    protected static void SetHeaders(ServiceBusMessage busMsg, IDictionary<string, object> properties)
+    {
+        foreach (var item in properties)
+        {
+            // Also consider using this value to signal
+            // whether adding heade was a success or not.
+            busMsg.ApplicationProperties.TryAdd(item.Key, item.Value);
+        }
+    }
 }
