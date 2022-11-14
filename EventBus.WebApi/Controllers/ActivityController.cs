@@ -13,10 +13,10 @@ public class ActivityController : ControllerBase
     private readonly IMessageSender<AntMan> _antSender;
     private readonly ILogger<ActivityController> _logger;
 
-    public ActivityController(ILogger<ActivityController> logger, IMessageSender<AntMan> antSender)
+    public ActivityController(IMessageSender<AntMan> antSender, ILogger<ActivityController> logger)
     {
-        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _antSender = antSender;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     [HttpPost(Name = "CreateActivity")]

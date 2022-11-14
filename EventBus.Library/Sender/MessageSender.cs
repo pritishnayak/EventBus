@@ -1,4 +1,5 @@
 ﻿using Azure.Messaging.ServiceBus;
+using Azure.Messaging.ServiceBus.Administration;
 using EventBus.Library.Attributes;
 using System.Reflection;
 
@@ -63,6 +64,16 @@ public class MessageSender : IMessageSender
     public MessageSender(string topicName)
     {
         ServiceBusClient client = new(ConnectionString);
+        ServiceBusAdministrationClient adminClient = new(ConnectionString);
+        if (adminClient.TopicExistsAsync(topicName).Result)
+        {
+            TopicProperties topic = adminClient.CreateTopicAsync(topicName).Result;
+            if (topic.Status != EntityStatus.Active)
+            {
+                throw new Exception();
+            }
+        }
+
         _sender = client.CreateSender(topicName);
     }
 

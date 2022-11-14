@@ -35,11 +35,6 @@ internal sealed class EventRegistractions : IHostedService
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        foreach (var processor in _serviceBusProcessors.Values)
-        {
-            await processor.StopProcessingAsync(cancellationToken);
-            await processor.DisposeAsync();
-        }
 
         await _client.DisposeAsync();
     }
